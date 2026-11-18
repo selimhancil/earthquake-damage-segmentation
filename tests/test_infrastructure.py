@@ -289,7 +289,7 @@ class TestRasterioLoader:
     rasterio = _rasterio
 
     def make_tiff(self, tmp_path, count=3, dtype="uint8", crs="EPSG:32637", nodata=None,
-                  colorinterp=None):
+                  colorinterp=None, **creation_options):
         from rasterio.transform import from_origin
 
         path = tmp_path / "scene.tif"
@@ -300,6 +300,7 @@ class TestRasterioLoader:
         with self.rasterio.open(
             path, "w", driver="GTiff", height=20, width=30, count=count, dtype=dtype,
             crs=crs, transform=from_origin(400000, 4250000, 0.5, 0.5), nodata=nodata,
+            **creation_options,
         ) as dst:
             dst.write(data)
             if colorinterp is not None:
@@ -331,8 +332,16 @@ class TestRasterioLoader:
         assert img.pixels.shape == (20, 30, 3)
 
     def test_four_unlabelled_bands_are_rejected(self, tmp_path):
+        # PHOTOMETRIC=MINISBLACK: 4. bant alpha olarak işaretlenmez (ör. RGB + NIR)
+        data = self.make_tiff(tmp_path, count=4, photometric="MINISBLACK")
         with pytest.raises(InvalidImageError, match="bantlı"):
-            RasterioImageLoader().load(self.make_tiff(tmp_path, count=4), "scene.tif")
+            RasterioImageLoader().load(data, "scene.tif")
+
+    def test_four_bands_with_alpha_are_accepted(self, tmp_path):
+        # GDAL varsayılanı: 4 bantlı 8-bit GTiff -> RGB + alpha
+        data = self.make_tiff(tmp_path, count=4)
+        img = RasterioImageLoader().load(data, "scene.tif")
+        assert img.pixels.shape == (20, 30, 3)
 
     def test_uint16_is_stretched(self, tmp_path):
         img = RasterioImageLoader().load(self.make_tiff(tmp_path, dtype="uint16"), "scene.tif")

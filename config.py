@@ -4,6 +4,7 @@ Ortam değişkenleriyle geçersiz kılınabilen değerler:
     EV_WEIGHTS_PATH   model ağırlık dosyası (varsayılan: weights/best_model.pt)
     EV_RESULTS_DIR    çıktı klasörü (varsayılan: data/test_results)
     EV_DEVICE         YOLO cihazı: "cpu", "mps", "0" ... (varsayılan: Ultralytics seçer)
+    EV_DEMO_MODE      "1" ise eğitilmiş model yerine DEMO ONLY sahte segmentasyon kullanılır
 """
 
 from __future__ import annotations
@@ -11,6 +12,14 @@ from __future__ import annotations
 import importlib.util
 import os
 from pathlib import Path
+
+def env_flag(name: str, default: bool = False) -> bool:
+    """'1', 'true', 'yes', 'on' (büyük/küçük harf duyarsız) -> True."""
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on", "evet"}
+
 
 # --------------------------------------------------------------------------- #
 # Yollar
@@ -44,6 +53,12 @@ POLYGON_FIDELITY_IOU_WARN = 0.90
 # --------------------------------------------------------------------------- #
 YOLO_IMGSZ = 512
 YOLO_DEVICE = os.environ.get("EV_DEVICE") or None
+
+# --------------------------------------------------------------------------- #
+# Demo modu (yalnızca arayüz denemesi; sonuçlar DEMO ONLY olarak işaretlenir)
+# --------------------------------------------------------------------------- #
+DEMO_MODE = env_flag("EV_DEMO_MODE")
+DEMO_RESULTS_DIR = RESULTS_DIR / "demo"
 
 # --------------------------------------------------------------------------- #
 # Dosya türleri

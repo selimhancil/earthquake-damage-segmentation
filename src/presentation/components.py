@@ -153,6 +153,7 @@ def region_table_rows(out: AnalysisOutputDTO) -> List[Dict[str, Any]]:
 # --------------------------------------------------------------------------- #
 # Uyarı kodu -> gösterim seviyesi ("warning" sarı, "info" mavi)
 WARNING_LEVELS = {
+    "DEMO_ONLY": "warning",
     "NO_DAMAGE_DETECTED": "warning",
     "CALIBRATION_UNAVAILABLE": "warning",
     "GEOREFERENCE_NOT_METRIC": "warning",
@@ -216,6 +217,18 @@ def uploader_types(allowed_extensions) -> List[str]:
     return sorted(ext.lstrip(".") for ext in allowed_extensions)
 
 
+DEMO_BANNER = (
+    "**DEMO ONLY:** Bu oturum eğitilmiş bir model KULLANMIYOR. İşaretlenen alanlar basit "
+    "bir doku sezgiselinden gelir ve deprem hasarı değildir. Yalnızca arayüzü denemek "
+    "içindir; sonuçları bilimsel, resmî veya makale amaçlı kullanmayın. Kaydedilen "
+    "dosyalar `DEMO_` ön ekiyle ve filigranla işaretlenir."
+)
+
+DEMO_HINT = (
+    "Demo modunu kapatmak için uygulamayı `EV_DEMO_MODE` olmadan başlatın: "
+    "`streamlit run main.py`"
+)
+
 TRAINING_INSTRUCTIONS = """\
 **Model ağırlıkları bulunamadı veya kullanılamıyor.**
 
@@ -227,4 +240,7 @@ Bu uygulama yalnızca Malatya hasar verisiyle eğitilmiş bir YOLOv8-Seg modeliy
 3. Modeli Colab'da eğitin: `python -m src.training.train`
 4. Oluşan `best_model.pt` dosyasını `{weights_path}` konumuna koyun.
 5. Bu sayfayı yenileyin.
+
+Arayüzü model olmadan denemek için demo modunu kullanabilirsiniz (sonuçlar DEMO ONLY):
+`EV_DEMO_MODE=1 streamlit run main.py`
 """

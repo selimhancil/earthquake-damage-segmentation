@@ -56,6 +56,8 @@ def run_app(get_context: Callable[[], AppContext]) -> None:
     )
 
     context = get_context()
+    if context.demo_mode:
+        st.warning(ui.DEMO_BANNER)
     if not context.segmentation_service.is_ready():
         _render_model_missing(context)
         return
@@ -65,6 +67,15 @@ def run_app(get_context: Callable[[], AppContext]) -> None:
 
     if st.button("Analiz et", type="primary", disabled=post_file is None):
         _run_analysis(context, post_file, pre_file, settings)
+    if context.demo_mode and context.demo_sample_provider is not None:
+        if st.button("Sentetik örnek sahneyle dene (DEMO)"):
+            pre_png, post_png = context.demo_sample_provider()
+            _run_analysis(
+                context,
+                _InMemoryFile("demo_sentetik_sonrasi.png", post_png),
+                _InMemoryFile("demo_sentetik_oncesi.png", pre_png),
+                settings,
+            )
 
     error: Optional[str] = st.session_state.get(ERROR_KEY)
     if error:
@@ -72,6 +83,17 @@ def run_app(get_context: Callable[[], AppContext]) -> None:
     output: Optional[AnalysisOutputDTO] = st.session_state.get(RESULT_KEY)
     if output is not None:
         render_results(output)
+
+
+class _InMemoryFile:
+    """st.file_uploader dosyasının kullandığımız arayüzü (name, getvalue)."""
+
+    def __init__(self, name: str, data: bytes):
+        self.name = name
+        self._data = data
+
+    def getvalue(self) -> bytes:
+        return self._data
 
 
 # --------------------------------------------------------------------------- #
@@ -121,7 +143,11 @@ def _render_sidebar(context: AppContext) -> dict:
             "de tam siyah olabilir. GeoTIFF'te nodata maskesi her zaman kullanılır.",
         )
         st.divider()
-        st.caption(f"Model: `{context.weights_path.name}`")
+        if context.demo_mode:
+            st.caption("Model: **DEMO (eğitilmiş model yok)**")
+            st.caption(ui.DEMO_HINT)
+        else:
+            st.caption(f"Model: `{context.weights_path.name}`")
         if not context.geotiff_enabled:
             st.caption("GeoTIFF desteği kapalı (rasterio kurulu değil).")
     return {"threshold": threshold, "gsd": gsd, "exclude_padding": exclude_padding}
@@ -179,7 +205,9 @@ def _run_analysis(context: AppContext, post_file, pre_file, settings: dict) -> N
 # --------------------------------------------------------------------------- #
 def render_results(out: AnalysisOutputDTO) -> None:
     st.divider()
-    st.subheader("Sonuçlar")
+    st.subheader("Sonuçlar (DEMO ONLY)" if out.demo_mode else "Sonuçlar")
+    if out.demo_mode:
+        st.error("DEMO ONLY: Bu sonuçlar eğitilmiş bir modelden gelmiyor; deprem hasarı değildir.")
 
     # Görseller (şartname 7.3)
     col_orig, col_pred = st.columns(2)

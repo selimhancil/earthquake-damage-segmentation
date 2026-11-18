@@ -74,3 +74,34 @@ def sample_output(gsd=0.5, pre: bool = False) -> AnalysisOutputDTO:
             pre_image_filename="malatya_pre.png" if pre else None,
         )
     )
+
+
+def build_demo_context() -> AppContext:
+    """Demo modundaki AppContext (gerçek adapter'lar + demo segmentasyon, geçici klasör)."""
+    from src.infrastructure.demo_service import (
+        DemoSegmentationService,
+        DemoWatermarkVisualization,
+        demo_scene_png_pair,
+    )
+
+    workdir = Path(tempfile.mkdtemp(prefix="ev_demo_"))
+    segmenter = DemoSegmentationService()
+    use_case = AnalyzeSatelliteImageUseCase(
+        image_loader=CompositeImageLoader(CV2ImageLoader()),
+        segmentation_service=segmenter,
+        measurement_service=CV2MeasurementService(),
+        visualization_service=DemoWatermarkVisualization(CV2VisualizationService()),
+        output_writer=FileOutputWriter(workdir / "results"),
+        limits=AnalysisLimits(allowed_extensions=EXTENSIONS),
+    )
+    return AppContext(
+        use_case=use_case,
+        segmentation_service=segmenter,
+        allowed_extensions=EXTENSIONS,
+        default_confidence_threshold=0.70,
+        max_image_mb=15,
+        weights_path=workdir / "best_model.pt",
+        geotiff_enabled=False,
+        demo_mode=True,
+        demo_sample_provider=demo_scene_png_pair,
+    )

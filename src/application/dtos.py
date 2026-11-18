@@ -82,6 +82,7 @@ class ModelInfo:
     weights_sha256: Optional[str] = None
     model_family: str = "yolov8-seg"
     class_names: Tuple[str, ...] = ("damaged_region",)
+    is_demo: bool = False  # True: eğitilmiş model değil, DEMO ONLY sahte segmentasyon
 
 
 @dataclass(frozen=True)
@@ -143,3 +144,4 @@ class AnalysisOutputDTO:
     saved_summary_path: Path
     inference_time_ms: float
     warnings: List[str]
+    demo_mode: bool = False

@@ -63,6 +63,8 @@ W_SINGLE_DATE = "SINGLE_DATE_MODEL"
 W_LOCATION = "LOCATION_NOT_VERIFIED"
 W_PRE_IMAGE = "PRE_IMAGE_DISPLAY_ONLY"
 W_AOI_ASSUMED = "AOI_FULL_IMAGE_ASSUMED"
+W_DEMO = "DEMO_ONLY"
+DEMO_FILE_PREFIX = "DEMO_"
 
 
 @dataclass(frozen=True)
@@ -160,6 +162,14 @@ class AnalyzeSatelliteImageUseCase:
         result.set_pixel_counts(measurement.damaged_union_pixels, measurement.valid_aoi_pixels)
 
         self._collect_result_warnings(result, warnings)
+        model = self._segmenter.model_info()
+        if model.is_demo:
+            warnings.insert(
+                0,
+                f"{W_DEMO}: Sonuçlar eğitilmiş bir modelden DEĞİL, arayüzü denemek için "
+                "üretilmiş sahte (demo) segmentasyondan gelir. Bilimsel, resmî veya "
+                "makale amaçlı KULLANMAYIN.",
+            )
 
         # 7) Görselleştirme
         labels = [f"#{r.id} {r.confidence:.2f}" for r in result.regions]
@@ -173,8 +183,11 @@ class AnalyzeSatelliteImageUseCase:
         summary = self._build_summary(
             image, request, result, region_dtos, inference_ms, warnings, pre_image is not None
         )
+        base_name = PurePath(image.filename).stem or "analysis"
+        if model.is_demo:
+            base_name = DEMO_FILE_PREFIX + base_name
         saved = self._writer.save(
-            base_name=PurePath(image.filename).stem or "analysis",
+            base_name=base_name,
             annotated_image=annotated,
             mask_image=mask_image,
             region_rows=[self._region_row(d) for d in region_dtos],
@@ -207,6 +220,7 @@ class AnalyzeSatelliteImageUseCase:
             saved_summary_path=saved.summary_json_path,
             inference_time_ms=inference_ms,
             warnings=warnings,
+            demo_mode=model.is_demo,
         )
 
     # ------------------------------------------------------------------ #
@@ -366,6 +380,7 @@ class AnalyzeSatelliteImageUseCase:
         calibration = result.settings.calibration
         model = self._segmenter.model_info()
         return {
+            "demo_mode": model.is_demo,
             "analyzed_at_utc": datetime.now(timezone.utc).isoformat(),
             "input": {
                 "post_image_filename": image.filename,

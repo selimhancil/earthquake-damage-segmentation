@@ -17,6 +17,11 @@ KATE-CD'nin orijinal split'i korunur: denetim, split'ler arasında coğrafi
 Çalıştırma:
     python -m src.training.prepare_malatya
     python -m src.training.prepare_malatya --variant kate7_eval_malatya
+    python -m src.training.prepare_malatya --offline   # yalnızca yerel dosyalar (ör. Colab)
+
+Not: CodeOcean dosya sunucusu bulut sağlayıcılarının (ör. Google Colab) isteklerini
+403 ile reddedebilir. O durumda veriyi kendi bilgisayarınızda bu script ile indirip
+data/raw/kate_cd klasörünü Colab'a taşıyın ve --offline ile çalıştırın.
 """
 
 from __future__ import annotations
@@ -74,6 +79,38 @@ def load_passed_audit(report_path: Path) -> dict:
     if report.get("malatya", {}).get("cross_split_overlaps"):
         raise PreparationError("Malatya alt kümesinde split'ler arası coğrafi örtüşme var; split yeniden yapılmalı.")
     return report
+
+
+def verify_local_metadata(report: dict, download_dir: Path, required: bool = False) -> List[str]:
+    """Yerel metadata dosyalarının SHA-256'sı denetim raporundakilerle aynı mı?
+
+    Veri başka bir makinede indirilip taşındığında, denetlenen dosyalarla aynı
+    olduğunu kanıtlar. Döndürülen liste doğrulanan dosyalardır.
+    """
+    expected = report.get("dataset", {}).get("metadata_files", {})
+    verified, missing = [], []
+    for rel, info in expected.items():
+        path = download_dir / rel
+        if not path.is_file():
+            missing.append(rel)
+            continue
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        if actual != info.get("sha256"):
+            raise PreparationError(
+                f"{rel} denetlenen dosyadan farklı (SHA-256 uyuşmuyor). Denetimi yeniden çalıştırın."
+            )
+        verified.append(rel)
+    if required and missing:
+        raise PreparationError(f"Denetim metadata'sı eksik: {missing}")
+    return verified
+
+
+def offline_fetch(url: str) -> bytes:
+    raise PreparationError(
+        f"Çevrimdışı modda eksik dosya: {url.split('/data/')[-1]}. Veriyi internete erişebilen bir "
+        "bilgisayarda 'python -m src.training.prepare_malatya --variant <varyant>' ile indirip "
+        "data/raw/kate_cd klasörünü buraya kopyalayın."
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -193,6 +230,9 @@ def run_prepare(
     if len(malatya) != report["malatya"]["pair_count"]:
         raise PreparationError("malatya_pairs.csv ile denetim raporundaki Malatya sayısı farklı.")
 
+    verified = verify_local_metadata(report, download_dir, required=(variant == VARIANT_KATE7))
+    if verified:
+        logger.info("Yerel metadata denetim raporuyla aynı (SHA-256): %d dosya", len(verified))
     all_pairs = all_pairs_from_metadata(download_dir) if variant == VARIANT_KATE7 else None
     if variant == VARIANT_KATE7:
         logger.warning(
@@ -206,6 +246,7 @@ def run_prepare(
     out = {
         "variant": variant,
         "audit_status": report["status"],
+        "metadata_verified_sha256": verified,
         "training_cities": sorted({p.city for p in selection if p.split == "train"}),
         "evaluation_cities": sorted({p.city for p in selection if p.split in ("val", "test")}),
         "counts": summarize(selection),
@@ -236,11 +277,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--malatya-csv", type=Path, default=Path("reports/malatya_pairs.csv"))
     parser.add_argument("--download-dir", type=Path, default=Path("data/raw/kate_cd"))
     parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--offline", action="store_true",
+                        help="İndirme yapma; eksik dosya varsa açıklayıcı hata ver")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - [%(levelname)s] - %(name)s: %(message)s",
                         datefmt="%H:%M:%S")
     try:
         out = run_prepare(args.variant, args.audit_report, args.malatya_csv, args.download_dir,
+                          fetch=offline_fetch if args.offline else audit.http_fetch,
                           workers=args.workers)
     except PreparationError as exc:
         logger.error("%s", exc)

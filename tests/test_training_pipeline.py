@@ -348,9 +348,31 @@ class TestEvaluate:
 def test_colab_notebook_is_valid_and_gated():
     nb = json.loads((Path(__file__).resolve().parents[1] / "notebooks" / "colab_train.ipynb").read_text(encoding="utf-8"))
     assert nb["nbformat"] == 4
-    source = "\n".join("".join(c["source"]) for c in nb["cells"])
-    order = [source.index(s) for s in ("audit_dataset", "prepare_malatya", "convert_to_yolo",
-                                       "src.training.train", "src.training.evaluate")]
-    assert order == sorted(order)  # denetim her zaman önce
-    assert 'assert audit["status"] == "PASSED"' in source
-    assert "getpass" in source and "ghp_" not in source  # token not defterine yazılmaz
+    source = "\n".join("".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code")
+    order = [source.index(s) for s in ('assert audit["status"] == "PASSED"', "prepare_malatya --variant",
+                                       "convert_to_yolo", "src.training.train", "src.training.evaluate")]
+    assert order == sorted(order)  # denetim kapısı her zaman önce
+    assert "--offline" in source  # Colab'da CodeOcean'a istek atılmaz (403)
+    assert "returncode" in source  # başarısız komut hücreyi durdurur
+    assert "getpass" in source and "ghp_" not in source and "github_pat_" not in source
+
+
+def test_prepare_offline_mode_fails_clearly_when_files_missing(workspace):
+    with pytest.raises(PreparationError, match="Çevrimdışı modda eksik dosya"):
+        prepare_malatya.run_prepare(variant="malatya", fetch=prepare_malatya.offline_fetch,
+                                    base_url=workspace["base"], workers=1)
+
+
+def test_prepare_offline_mode_uses_local_files(workspace):
+    prepare(workspace, "malatya")  # "bilgisayarda" indir
+    out = prepare_malatya.run_prepare(variant="malatya", fetch=prepare_malatya.offline_fetch,
+                                      base_url=workspace["base"], workers=1)
+    assert out["counts"]["train"] == {"malatya": 2}
+    assert len(out["metadata_verified_sha256"]) >= 7
+
+
+def test_tampered_metadata_is_rejected(workspace):
+    path = Path("data/raw/kate_cd/preprocessing/filename_mapping.txt")
+    path.write_text(path.read_text() + "\n./train/label/x.png ./train/label/train_999.png\n")
+    with pytest.raises(PreparationError, match="SHA-256"):
+        prepare(workspace, "kate7_eval_malatya")

@@ -91,6 +91,11 @@ data/processed/malatya_yolo/images/*/*
 data/processed/malatya_yolo/labels/*/*
 !data/processed/malatya_yolo/labels/*/.gitkeep
 data/processed/**/*.cache
+data/processed/malatya_yolo/masks/
+data/processed/malatya_yolo/pre/
+# Extra experiment variants (e.g. kate7_eval_malatya_yolo) are fully generated
+data/processed/*_yolo/
+!data/processed/malatya_yolo/
 data/test_results/*
 !data/test_results/.gitkeep
 

@@ -469,3 +469,91 @@ def test_real_kate_cd_malatya_subset(tmp_path):
     assert mal["contradictions"] == []
     assert report["mask_semantics"]["checked"]["binary_encoding"] in ("0/1", "0/255")
     assert report["status"] == STATUS_PASSED
+
+
+# =========================================================================== #
+# YOLO dönüştürme (convert_to_yolo.py)
+# =========================================================================== #
+from src.training.convert_to_yolo import (  # noqa: E402
+    binarize,
+    convert_mask,
+    dataset_yaml_text,
+    mask_to_polygons,
+    polygons_to_yolo_lines,
+    yolo_lines_to_mask,
+)
+
+
+def square_mask(x0, y0, x1, y1, size=512, value=255):
+    m = np.zeros((size, size), np.uint8)
+    m[y0:y1, x0:x1] = value
+    return m
+
+
+class TestYoloConversion:
+    def test_binarize_handles_0255_and_rgb(self):
+        assert binarize(square_mask(0, 0, 2, 2)).sum() == 4
+        assert binarize(np.dstack([square_mask(0, 0, 2, 2)] * 3)).sum() == 4
+        assert binarize(square_mask(0, 0, 2, 2, value=1)).sum() == 4
+
+    def test_line_format_and_normalized_range(self):
+        lines, n, *_ = convert_mask(square_mask(100, 50, 200, 150))
+        assert n == 1 and len(lines) == 1
+        parts = lines[0].split()
+        assert parts[0] == "0"  # damaged_region
+        coords = [float(v) for v in parts[1:]]
+        assert len(coords) % 2 == 0 and len(coords) >= 6
+        assert all(0.0 <= v <= 1.0 for v in coords)
+        xs, ys = coords[0::2], coords[1::2]
+        assert min(xs) == pytest.approx(100 / 512, abs=1e-3)
+        assert max(ys) == pytest.approx(149 / 512, abs=1e-3)
+
+    def test_solid_shapes_round_trip_with_high_fidelity(self):
+        m = square_mask(10, 10, 60, 90)
+        cv2.circle(m, (300, 300), 50, 255, -1)
+        lines, n, dropped, dropped_px, fidelity = convert_mask(m)
+        assert n == 2 and dropped == 0
+        assert fidelity > 0.98
+
+    def test_full_image_mask_stays_inside_unit_square(self):
+        lines, *_ , fidelity = convert_mask(np.full((512, 512), 255, np.uint8))
+        assert all(0.0 <= float(v) <= 1.0 for v in lines[0].split()[1:])
+        assert fidelity == pytest.approx(1.0)
+
+    def test_hole_is_filled_and_fidelity_drops(self):
+        m = square_mask(100, 100, 200, 200)
+        m[130:170, 130:170] = 0  # 1600 px delik (çökmüş bina iç boşluğu gibi)
+        lines, n, _, _, fidelity = convert_mask(m)
+        assert n == 1
+        refilled = yolo_lines_to_mask(lines, 512, 512)
+        assert refilled[150, 150]  # delik YOLO poligonunda doludur
+        assert fidelity < 0.90  # uyarı eşiğinin altına düşer, raporlanır
+
+    def test_small_components_are_dropped_and_counted(self):
+        m = square_mask(100, 100, 200, 200)
+        m[400:402, 400:403] = 255  # 6 px gürültü
+        _, n, dropped, dropped_px, _ = convert_mask(m, min_area_px=16)
+        assert n == 1 and dropped == 1 and dropped_px == 6
+
+    def test_empty_mask_gives_empty_label(self):
+        lines, n, dropped, dropped_px, fidelity = convert_mask(np.zeros((512, 512), np.uint8))
+        assert lines == [] and n == 0 and fidelity is None
+
+    def test_thin_component_becomes_valid_polygon(self):
+        m = np.zeros((512, 512), np.uint8)
+        m[200, 100:140] = 255  # 1 piksel kalınlığında çizgi, 40 px
+        polygons, *_ = mask_to_polygons(m, min_area_px=16)
+        assert polygons and all(len(p) >= 3 for p in polygons)
+
+    def test_coordinates_are_clipped(self):
+        poly = np.array([[-5, -5], [600, 0], [600, 600]])
+        line = polygons_to_yolo_lines([poly], 512, 512)[0]
+        assert all(0.0 <= float(v) <= 1.0 for v in line.split()[1:])
+
+    def test_dataset_yaml_matches_spec(self):
+        text = dataset_yaml_text("data/processed/malatya_yolo")
+        assert text.splitlines() == [
+            "path: data/processed/malatya_yolo", "train: images/train", "val: images/val",
+            "test: images/test", "names:", "  0: damaged_region",
+        ]
+        assert "undamaged" not in text.lower()

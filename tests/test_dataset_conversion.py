@@ -394,11 +394,61 @@ class TestRunAudit:
     def test_main_exit_code(self, tmp_path, monkeypatch):
         history, pairs, text = build_fixture([], HATAY_SPECS)
         monkeypatch.setattr(audit, "http_fetch", fake_fetcher(history, pairs, text))
-        monkeypatch.setattr(audit.run_audit, "__defaults__",
-                            (audit.http_fetch, *audit.run_audit.__defaults__[1:]))
         code = audit.main(["--download-dir", str(tmp_path / "raw"),
                            "--report", str(tmp_path / "r.json"), "--skip-masks"])
         assert code == 2  # DATASET_BLOCKED
+
+    def test_offline_mode_reads_local_files(self, tmp_path):
+        history, pairs, text = build_fixture(MALATYA_SPECS, HATAY_SPECS)
+        # önce "indir" (sahte), sonra çevrimdışı modda aynı klasörden oku
+        self.run(tmp_path, fake_fetcher(history, pairs, text), check_masks=False)
+        code = audit.main(["--offline", "--skip-masks", "--download-dir", str(tmp_path / "raw"),
+                           "--report", str(tmp_path / "offline.json")])
+        assert code == 0
+        report = json.loads((tmp_path / "offline.json").read_text(encoding="utf-8"))
+        assert report["malatya"]["pair_count"] == 4
+
+
+class TestHttpFetch:
+    def test_browser_headers_are_sent(self, monkeypatch):
+        seen = {}
+
+        class Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b"ok"
+
+        def fake_urlopen(req, timeout):
+            seen.update(dict(req.header_items()))
+            return Resp()
+
+        monkeypatch.setattr(audit.urllib.request, "urlopen", fake_urlopen)
+        assert audit.http_fetch("https://example.test/x") == b"ok"
+        assert seen["User-agent"].startswith("Mozilla/5.0")
+        assert seen["Origin"] == "https://codeocean.com"
+
+    def test_falls_back_to_curl(self, monkeypatch):
+        def boom(url, timeout):
+            raise audit.urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
+
+        monkeypatch.setattr(audit, "_urllib_fetch", boom)
+        monkeypatch.setattr(audit, "_curl_fetch", lambda url, timeout: b"from-curl")
+        assert audit.http_fetch("https://example.test/x") == b"from-curl"
+
+    def test_gives_up_with_helpful_message(self, monkeypatch):
+        def boom(url, timeout):
+            raise RuntimeError("403")
+
+        monkeypatch.setattr(audit, "_urllib_fetch", boom)
+        monkeypatch.setattr(audit, "_curl_fetch", boom)
+        monkeypatch.setattr(audit.time, "sleep", lambda s: None)
+        with pytest.raises(RuntimeError, match="--offline"):
+            audit.http_fetch("https://example.test/x", retries=2)
 
 
 # --------------------------------------------------------------------------- #

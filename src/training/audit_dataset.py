@@ -354,18 +354,59 @@ def inspect_masks(blobs: Iterable[Tuple[str, bytes]], expected_size: int = 512) 
 # --------------------------------------------------------------------------- #
 # Ağ ve dosya işlemleri
 # --------------------------------------------------------------------------- #
+# files.codeocean.com, tarayıcı dışı istemci kimliklerini (ör. Python-urllib)
+# 403 ile reddediyor. Kapsül sayfasının tarayıcıda gönderdiği başlıklar kullanılır.
+BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+    ),
+    "Accept": "*/*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Origin": "https://codeocean.com",
+    "Referer": "https://codeocean.com/",
+}
+
+
+def _urllib_fetch(url: str, timeout: int) -> bytes:
+    req = urllib.request.Request(url, headers=BROWSER_HEADERS)
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read()
+
+
+def _curl_fetch(url: str, timeout: int) -> bytes:
+    """Yedek: sistemdeki curl (macOS ve Colab'da kurulu)."""
+    import shutil
+    import subprocess
+
+    curl = shutil.which("curl")
+    if curl is None:
+        raise RuntimeError("curl bulunamadı")
+    cmd = [curl, "-fsSL", "--max-time", str(timeout)]
+    for key, value in BROWSER_HEADERS.items():
+        cmd += ["-H", f"{key}: {value}"]
+    cmd.append(url)
+    proc = subprocess.run(cmd, capture_output=True, check=False)
+    if proc.returncode != 0:
+        raise RuntimeError(f"curl hata kodu {proc.returncode}: {proc.stderr.decode(errors='replace').strip()}")
+    return proc.stdout
+
+
 def http_fetch(url: str, retries: int = 3, timeout: int = 60) -> bytes:
     last: Optional[Exception] = None
     for attempt in range(1, retries + 1):
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "earthquake-vision-audit/1.0"})
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return resp.read()
-        except (urllib.error.URLError, TimeoutError) as exc:
-            last = exc
-            logger.warning("İndirme denemesi %d/%d başarısız: %s (%s)", attempt, retries, url, exc)
-            time.sleep(min(2 ** attempt, 10))
-    raise RuntimeError(f"İndirilemedi: {url}: {last}")
+        for name, method in (("urllib", _urllib_fetch), ("curl", _curl_fetch)):
+            try:
+                return method(url, timeout)
+            except (urllib.error.URLError, TimeoutError, RuntimeError, OSError) as exc:
+                last = exc
+                logger.warning("İndirme (%s) denemesi %d/%d başarısız: %s (%s)",
+                               name, attempt, retries, url, exc)
+        time.sleep(min(2 ** attempt, 10))
+    raise RuntimeError(
+        f"İndirilemedi: {url}: {last}. Tarayıcıda açılabiliyorsa dosyaları elle indirip "
+        "--download-dir altına koyun ve --offline ile çalıştırın."
+    )
 
 
 def sha256(data: bytes) -> str:
@@ -544,11 +585,23 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--report", type=Path, default=Path("reports/data_audit.json"))
     parser.add_argument("--skip-masks", action="store_true", help="Maske semantiği kontrolünü atla")
     parser.add_argument("--base-url", default=FILES_BASE_URL)
+    parser.add_argument(
+        "--offline", action="store_true",
+        help="İndirme yapma; dosyaları --download-dir altından oku (ör. tarayıcıdan elle "
+             "indirilmiş preprocessing/ klasörü). Maskeler yoksa --skip-masks ekleyin.",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - [%(levelname)s] - %(name)s: %(message)s",
                         datefmt="%H:%M:%S")
-    report = run_audit(base_url=args.base_url, download_dir=args.download_dir,
+    if args.offline:
+        local_root = args.download_dir.resolve()
+        fetch: Fetcher = lambda url: Path(url).read_bytes()  # noqa: E731
+        base_url = str(local_root) + "/"
+        logger.info("Çevrimdışı mod: dosyalar %s altından okunuyor", local_root)
+    else:
+        fetch, base_url = http_fetch, args.base_url
+    report = run_audit(fetch=fetch, base_url=base_url, download_dir=args.download_dir,
                        report_path=args.report, check_masks=not args.skip_masks)
     print_summary(report)
     return 0 if report["status"] == STATUS_PASSED else 2

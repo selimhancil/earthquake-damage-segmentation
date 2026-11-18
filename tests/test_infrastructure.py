@@ -24,59 +24,9 @@ from src.infrastructure.cv2_service import (
 from src.infrastructure.file_service import CSV_COLUMNS, FileOutputWriter
 from src.infrastructure.raster_service import CompositeImageLoader, RasterioImageLoader
 from src.infrastructure.yolo_service import YoloSegmentationService, bbox_from_mask
+from tests.fakes import FakeYolo
 
 H, W = 64, 96
-
-
-# --------------------------------------------------------------------------- #
-# Sahte Ultralytics modeli
-# --------------------------------------------------------------------------- #
-class _Tensor:
-    """torch.Tensor'ın .cpu().numpy() arayüzünü taklit eder."""
-
-    def __init__(self, array):
-        self._a = np.asarray(array)
-
-    def cpu(self):
-        return self
-
-    def numpy(self):
-        return self._a
-
-
-class _Boxes:
-    def __init__(self, xyxy, conf, cls):
-        self.xyxy, self.conf, self.cls = _Tensor(xyxy), _Tensor(conf), _Tensor(cls)
-
-
-class _Masks:
-    def __init__(self, data):
-        self.data = _Tensor(data)
-
-
-class _Result:
-    def __init__(self, masks, boxes):
-        self.masks, self.boxes = masks, boxes
-
-
-class FakeYolo:
-    def __init__(self, names=None, masks=None, conf=None, mask_size=(H, W)):
-        self.names = names if names is not None else {0: "damaged_region"}
-        self.mask_size = mask_size
-        self._masks = masks
-        self._conf = conf
-        self.predict_kwargs = None
-        self.received = None
-
-    def predict(self, source, **kwargs):
-        self.received = source
-        self.predict_kwargs = kwargs
-        if self._masks is None:
-            return [_Result(None, None)]
-        n = len(self._masks)
-        xyxy = np.tile([0.0, 0.0, 1.0, 1.0], (n, 1))
-        return [_Result(_Masks(np.stack(self._masks).astype(np.float32)),
-                        _Boxes(xyxy, self._conf, np.zeros(n)))]
 
 
 @pytest.fixture

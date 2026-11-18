@@ -1,0 +1,391 @@
+{
+  "status": "PASSED",
+  "blockers": [],
+  "warnings": [
+    "Malatya değerlendirme örneği az (val+test = 9 < 30); metrikler güvenilir test sonucu olarak sunulmamalı, belirsizlik aralığıyla raporlanmalı."
+  ],
+  "generated_at_utc": "2026-11-18T18:44:54.864435+00:00",
+  "dataset": {
+    "name": "KATE-CD (Kahramanmaraş Türkiye Earthquake-Change Detection)",
+    "primary_source": "https://codeocean.com/capsule/9061546/tree/v2",
+    "doi": "https://doi.org/10.24433/CO.3747729.v1",
+    "files_base_url": "https://files.codeocean.com/files/verified/82765786-a936-438c-a75a-84e2817294c5_v2.0/data/",
+    "data_license_first_line": "CC0 1.0 Universal",
+    "imagery_note": "Alttaki Maxar Open Data / Airbus Pleiades görüntülerinin kullanım koşulları yayından önce ayrıca kontrol edilmelidir.",
+    "metadata_files": {
+      "preprocessing/README.md": {
+        "sha256": "f7fa16c903c4aca2881b0667cce340209405ed5cb0c9599f97cf988d75a0d1ef",
+        "bytes": 3279
+      },
+      "preprocessing/history_maxar.json": {
+        "sha256": "dd7bf675d201769bee89bb9a8356ff6a2613b67c5165df99c8b23e4b28a8bd0d",
+        "bytes": 330252
+      },
+      "preprocessing/history_pleidas.json": {
+        "sha256": "a157a333926a35cc8372d842bb3a350d27cbcd71efdb1de5c79e2cf2997c8e9c",
+        "bytes": 1052768
+      },
+      "preprocessing/history_pre_post_pairs.json": {
+        "sha256": "7e33e0829c70909390c6db5f65121ba344be1bf04462d4f9d364df430d95d6a1",
+        "bytes": 479418
+      },
+      "preprocessing/filename_mapping.txt": {
+        "sha256": "3a22f939a71ea958b79034c47adf3888ab21e48e378365d515f860e175a70773",
+        "bytes": 236196
+      },
+      "preprocessing/label_studio_files.txt": {
+        "sha256": "1ec0f869aa2614b9445d9cd9e0ac4ab04fe8126dbeb1c02a72ddcb2eabdb13da",
+        "bytes": 44997
+      },
+      "preprocessing/label_studio_annotations.csv": {
+        "sha256": "a51fdd40767cd9e8387b7587086467a1ae587d60f6aff64120ded08f76793a33",
+        "bytes": 893017
+      },
+      "LICENSE": {
+        "sha256": "36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673",
+        "bytes": 6555
+      }
+    },
+    "total_final_pairs": 486,
+    "pairs_by_source_city": {
+      "hatay": {
+        "test": 12,
+        "train": 181,
+        "val": 26
+      },
+      "iskenderun": {
+        "test": 3,
+        "train": 13,
+        "val": 2
+      },
+      "kilis": {
+        "test": 1,
+        "train": 2
+      },
+      "malatya": {
+        "test": 4,
+        "train": 53,
+        "val": 5
+      },
+      "maras": {
+        "test": 15,
+        "train": 115,
+        "val": 8
+      },
+      "osmaniye": {
+        "test": 1,
+        "train": 12
+      },
+      "samandag": {
+        "test": 2,
+        "train": 28,
+        "val": 3
+      }
+    },
+    "unresolved_pairs": 0
+  },
+  "malatya": {
+    "selection_method": "Bir çift yalnızca şu iki koşul birlikte sağlanırsa Malatya sayılır: (a) post kaynak sahne adı 'malatya' içerir (pre kaynak varsa o da Malatya), (b) patch'in EPSG:32637 sınırları Malatya zarfı (400000.0, 4210000.0, 480000.0, 4280000.0) içindedir. Görsel görünüşe dayalı tahmin yapılmaz.",
+    "pair_count": 62,
+    "by_split": {
+      "train": 53,
+      "val": 5,
+      "test": 4
+    },
+    "post_sources": [
+      "bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2"
+    ],
+    "pre_sources": [
+      "pre_malatya_subset_PHR1B_20200719_utm_jpeg_merged_aligned.JP2",
+      "pre_malatya_visual_merged_aligned.JP2"
+    ],
+    "utm_bbox": [
+      431313.25,
+      4240750.25,
+      443344.75,
+      4246125.75
+    ],
+    "gsd_m_per_pixel_from_source_metadata": [
+      0.5
+    ],
+    "contradictions": [],
+    "cross_split_overlaps": [],
+    "evidence": {
+      "test/test_1.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (438481.25, 4243310.25, 438736.75, 4243565.75)"
+      ],
+      "test/test_3.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (441297.25, 4245102.25, 441552.75, 4245357.75)"
+      ],
+      "test/test_17.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (441041.25, 4244846.25, 441296.75, 4245101.75)"
+      ],
+      "test/test_35.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (443089.25, 4244590.25, 443344.75, 4244845.75)"
+      ],
+      "train/train_14.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (439249.25, 4245358.25, 439504.75, 4245613.75)"
+      ],
+      "train/train_28.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (437969.25, 4243310.25, 438224.75, 4243565.75)"
+      ],
+      "train/train_38.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (436945.25, 4243310.25, 437200.75, 4243565.75)"
+      ],
+      "train/train_48.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (439505.25, 4245102.25, 439760.75, 4245357.75)"
+      ],
+      "train/train_63.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (438737.25, 4244334.25, 438992.75, 4244589.75)"
+      ],
+      "train/train_64.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (438993.25, 4244846.25, 439248.75, 4245101.75)"
+      ],
+      "train/train_65.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (438225.25, 4243566.25, 438480.75, 4243821.75)"
+      ],
+      "train/train_69.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (433873.25, 4243310.25, 434128.75, 4243565.75)"
+      ],
+      "train/train_71.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (439249.25, 4244846.25, 439504.75, 4245101.75)"
+      ],
+      "train/train_82.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (436689.25, 4243566.25, 436944.75, 4243821.75)"
+      ],
+      "train/train_92.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (440785.25, 4245102.25, 441040.75, 4245357.75)"
+      ],
+      "train/train_113.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (437713.25, 4245870.25, 437968.75, 4246125.75)"
+      ],
+      "train/train_118.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (439505.25, 4244590.25, 439760.75, 4244845.75)"
+      ],
+      "train/train_119.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (440017.25, 4244590.25, 440272.75, 4244845.75)"
+      ],
+      "train/train_138.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (441297.25, 4244590.25, 441552.75, 4244845.75)"
+      ],
+      "train/train_143.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (440785.25, 4244334.25, 441040.75, 4244589.75)"
+      ],
+      "train/train_147.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (438993.25, 4244590.25, 439248.75, 4244845.75)"
+      ],
+      "train/train_149.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (437969.25, 4243566.25, 438224.75, 4243821.75)"
+      ],
+      "train/train_158.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (441553.25, 4244334.25, 441808.75, 4244589.75)"
+      ],
+      "train/train_169.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (437969.25, 4244078.25, 438224.75, 4244333.75)"
+      ],
+      "train/train_178.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (439761.25, 4245102.25, 440016.75, 4245357.75)"
+      ],
+      "train/train_181.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (438993.25, 4245102.25, 439248.75, 4245357.75)"
+      ],
+      "train/train_182.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (431313.25, 4243054.25, 431568.75, 4243309.75)"
+      ],
+      "train/train_190.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (433617.25, 4243054.25, 433872.75, 4243309.75)"
+      ],
+      "train/train_195.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (434129.25, 4243054.25, 434384.75, 4243309.75)"
+      ],
+      "train/train_204.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (439761.25, 4244846.25, 440016.75, 4245101.75)"
+      ],
+      "train/train_212.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (431569.25, 4242542.25, 431824.75, 4242797.75)"
+      ],
+      "train/train_217.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (436945.25, 4244334.25, 437200.75, 4244589.75)"
+      ],
+      "train/train_227.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (433361.25, 4243054.25, 433616.75, 4243309.75)"
+      ],
+      "train/train_229.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (439505.25, 4244846.25, 439760.75, 4245101.75)"
+      ],
+      "train/train_249.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (439249.25, 4244590.25, 439504.75, 4244845.75)"
+      ],
+      "train/train_250.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (437969.25, 4243054.25, 438224.75, 4243309.75)"
+      ],
+      "train/train_270.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (437201.25, 4244334.25, 437456.75, 4244589.75)"
+      ],
+      "train/train_278.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (434129.25, 4243310.25, 434384.75, 4243565.75)"
+      ],
+      "train/train_285.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (440017.25, 4245102.25, 440272.75, 4245357.75)"
+      ],
+      "train/train_288.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (440529.25, 4244590.25, 440784.75, 4244845.75)"
+      ],
+      "train/train_292.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (440017.25, 4244846.25, 440272.75, 4245101.75)"
+      ],
+      "train/train_300.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (436433.25, 4244078.25, 436688.75, 4244333.75)"
+      ],
+      "train/train_306.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (442065.25, 4244590.25, 442320.75, 4244845.75)"
+      ],
+      "train/train_308.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (437713.25, 4243822.25, 437968.75, 4244077.75)"
+      ],
+      "train/train_310.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (440273.25, 4244846.25, 440528.75, 4245101.75)"
+      ],
+      "train/train_315.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (440017.25, 4245358.25, 440272.75, 4245613.75)"
+      ],
+      "train/train_321.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (437969.25, 4244846.25, 438224.75, 4245101.75)"
+      ],
+      "train/train_322.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (431569.25, 4242030.25, 431824.75, 4242285.75)"
+      ],
+      "train/train_323.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (438225.25, 4243310.25, 438480.75, 4243565.75)"
+      ],
+      "train/train_330.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (441553.25, 4244846.25, 441808.75, 4245101.75)"
+      ],
+      "train/train_331.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (440529.25, 4244846.25, 440784.75, 4245101.75)"
+      ],
+      "train/train_346.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (433617.25, 4241774.25, 433872.75, 4242029.75)"
+      ],
+      "train/train_355.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (436689.25, 4245614.25, 436944.75, 4245869.75)"
+      ],
+      "train/train_358.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (435921.25, 4243310.25, 436176.75, 4243565.75)"
+      ],
+      "train/train_361.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (434385.25, 4240750.25, 434640.75, 4241005.75)"
+      ],
+      "train/train_378.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (438737.25, 4244846.25, 438992.75, 4245101.75)"
+      ],
+      "train/train_391.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (437969.25, 4243822.25, 438224.75, 4244077.75)"
+      ],
+      "val/val_28.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (442321.25, 4244846.25, 442576.75, 4245101.75)"
+      ],
+      "val/val_29.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (431313.25, 4242798.25, 431568.75, 4243053.75)"
+      ],
+      "val/val_35.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (440529.25, 4245102.25, 440784.75, 4245357.75)"
+      ],
+      "val/val_38.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (440529.25, 4244334.25, 440784.75, 4244589.75)"
+      ],
+      "val/val_44.png": [
+        "post kaynak adı: bedas-dataset/JPG_UTM_Yeni_goruntuler/merged_aligned_images/post_malatya_subset_PHR1A_20230209_utm_jpeg_merged_shifted.JP2",
+        "UTM sınırları Malatya zarfında: (439249.25, 4245102.25, 439504.75, 4245357.75)"
+      ]
+    }
+  },
+  "all_pairs_cross_split_overlaps": 0,
+  "mask_semantics": {
+    "documented": "1 = hasar poligonu içi (damaged), 0 = işaretlenmemiş (hasarsız bina DEĞİL)",
+    "label_unit": "hasar poligonu / bölge (tekil bina garantisi yok)",
+    "checked": {
+      "checked": 62,
+      "unique_values": [
+        0,
+        255
+      ],
+      "binary_encoding": "0/255",
+      "empty_masks": 0,
+      "positive_pixel_ratio_mean": 0.027197,
+      "connected_regions_mean": 1.774,
+      "wrong_size": 0,
+      "errors": []
+    }
+  },
+  "calibration": {
+    "patch_files_carry_georeference": false,
+    "note": "PNG patch'ler coğrafi dönüşüm taşımaz; GSD kaynak sahnenin tif_transform değerinden alınır (kaynak metadata ile doğrulanmış)."
+  },
+  "training_gate": {
+    "training_allowed": true,
+    "yolo_class": "0: damaged_region",
+    "undamaged_building_class": "pasif (doğrulanmış footprint/etiket yok)"
+  }
+}

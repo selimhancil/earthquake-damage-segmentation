@@ -15,15 +15,27 @@ görüntüler üzerinden bootstrap ile %95 güven aralığıyla raporlanır.
     reports/evaluation_<deney>.json  (+ reports/evaluation.json)
     reports/figures/<deney>/<görüntü>.png  (öncesi | sonrası | ground truth | tahmin)
 
+Eşik seçimi (test kümesine BAKMADAN):
+    --select-threshold  doğrulama (val) kümesinde bir eşik ızgarası üzerinde mikro Dice'ı
+                        en yüksek yapan confidence eşiğini seçer ve
+                        reports/threshold_selection_<deney>.json olarak yazar.
+    Test değerlendirmesi bu dosya varsa seçilen eşiği otomatik ekler ve panelleri o eşikle çizer.
+    --export-app-weights ağırlığı weights/best_model.pt olarak kopyalar ve seçilen eşiği
+                        weights/best_model.meta.json içine yazar; uygulama varsayılan eşiği oradan okur.
+
 Çalıştırma:
     python -m src.training.evaluate --weights weights/<deney>_best.pt --variant malatya
+    python -m src.training.evaluate --weights weights/<deney>_best.pt --variant kate7_eval_malatya \
+        --select-threshold --export-app-weights
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
+import shutil
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -41,6 +53,7 @@ logger = logging.getLogger("evaluate")
 
 EVAL_CONF_FOR_MAP = 0.001  # config.EVAL_CONFIDENCE_THRESHOLD
 DEFAULT_PIXEL_THRESHOLDS = (0.25, 0.50, 0.70)
+THRESHOLD_GRID = tuple(round(0.05 * i, 2) for i in range(1, 19))  # 0.05 ... 0.90
 BOOTSTRAP_SAMPLES = 2000
 BOOTSTRAP_SEED = 42
 
@@ -149,6 +162,24 @@ def _r(v, digits: int = 4):
     return None if v is None else round(float(v), digits)
 
 
+def select_best_threshold(per_threshold: Dict[float, Dict[str, PixelCounts]]):
+    """Mikro Dice'ı en yüksek eşik; eşitlikte daha YÜKSEK eşik (daha az yanlış pozitif).
+
+    Hiçbir eşikte pozitif Dice yoksa (None, None) döner.
+    """
+    best_t, best_dice = None, None
+    for t in sorted(per_threshold):
+        total = PixelCounts(0, 0, 0)
+        for c in per_threshold[t].values():
+            total = total + c
+        dice = dice_from(total)
+        if dice is None or dice <= 0:
+            continue
+        if best_dice is None or dice >= best_dice - 1e-12:
+            best_t, best_dice = t, dice
+    return best_t, best_dice
+
+
 # --------------------------------------------------------------------------- #
 # Görsel panel
 # --------------------------------------------------------------------------- #
@@ -179,6 +210,145 @@ def make_panel(pre_bgr: np.ndarray, post_bgr: np.ndarray, gt: np.ndarray, pred: 
 # --------------------------------------------------------------------------- #
 # Ana akış
 # --------------------------------------------------------------------------- #
+def _load_checked_model(weights: Path, yolo_factory):
+    if not Path(weights).is_file():
+        raise PreparationError(f"Ağırlık dosyası yok: {weights}")
+    if yolo_factory is None:
+        from ultralytics import YOLO as yolo_factory  # noqa: N811
+    model = yolo_factory(str(weights))
+    names = getattr(model, "names", {})
+    class_names = [names[k] for k in sorted(names)] if isinstance(names, dict) else list(names)
+    if class_names != ["damaged_region"]:
+        raise PreparationError(f"Model sınıfları beklenen değil: {class_names}")
+    return model
+
+
+def _split_images(dataset_dir: Path, split: str) -> List[Path]:
+    image_dir = dataset_dir / "images" / split
+    images = sorted(p for p in image_dir.glob("*") if p.suffix.lower() in IMAGE_SUFFIXES)
+    if not images:
+        raise PreparationError(f"Değerlendirme görüntüsü yok: {image_dir}")
+    return images
+
+
+def _collect_pixel_counts(model, dataset_dir: Path, split: str, images: Sequence[Path],
+                          thresholds: Sequence[float], imgsz: int, device: Optional[str],
+                          fig_dir: Optional[Path] = None, figure_threshold: Optional[float] = None):
+    """Her görüntü için tek tahmin; her eşikte piksel sayıları."""
+    lowest = min(thresholds)
+    per_threshold: Dict[float, Dict[str, PixelCounts]] = {t: {} for t in thresholds}
+    pred_px: Dict[float, Dict[str, int]] = {t: {} for t in thresholds}
+    gt_px: Dict[str, int] = {}
+    for image_path in images:
+        gt = binarize(cv2.imread(str(dataset_dir / "masks" / split / image_path.name), cv2.IMREAD_UNCHANGED))
+        post = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
+        kwargs = dict(conf=lowest, imgsz=imgsz, retina_masks=True, verbose=False)
+        if device:
+            kwargs["device"] = device
+        res = model.predict(post, **kwargs)[0]
+        masks, confs = _extract(res, gt.shape)
+        gt_px[image_path.name] = int(gt.sum())
+        for t in thresholds:
+            pred = union_mask(masks, confs, t, gt.shape)
+            per_threshold[t][image_path.name] = pixel_counts(pred, gt)
+            pred_px[t][image_path.name] = int(pred.sum())
+            if fig_dir is not None and figure_threshold is not None and abs(t - figure_threshold) < 1e-9:
+                pre = cv2.imread(str(dataset_dir / "pre" / split / image_path.name), cv2.IMREAD_COLOR)
+                if pre is not None:
+                    cv2.imwrite(str(fig_dir / image_path.name), make_panel(pre, post, gt, pred, t))
+    return per_threshold, pred_px, gt_px
+
+
+def selection_path_for(experiment: str, reports_dir: Path = Path("reports")) -> Path:
+    return reports_dir / f"threshold_selection_{experiment}.json"
+
+
+def run_select_threshold(
+    weights: Path,
+    variant: str = VARIANT_MALATYA,
+    experiment: Optional[str] = None,
+    grid: Sequence[float] = THRESHOLD_GRID,
+    imgsz: int = 512,
+    device: Optional[str] = None,
+    audit_path: Path = Path("reports/data_audit.json"),
+    processed_root: Path = Path("data/processed"),
+    reports_dir: Path = Path("reports"),
+    yolo_factory=None,
+) -> dict:
+    """Doğrulama kümesinde eşik seçer. Test kümesi bu adımda HİÇ kullanılmaz."""
+    load_passed_audit(audit_path)
+    model = _load_checked_model(weights, yolo_factory)
+    dataset_dir = output_dir_for(variant, processed_root)
+    images = _split_images(dataset_dir, "val")
+    experiment = experiment or Path(weights).stem.replace("_best", "")
+    per_threshold, _, _ = _collect_pixel_counts(model, dataset_dir, "val", images, grid, imgsz, device)
+    best_t, best_dice = select_best_threshold(per_threshold)
+
+    table = []
+    for t in sorted(per_threshold):
+        total = PixelCounts(0, 0, 0)
+        for c in per_threshold[t].values():
+            total = total + c
+        table.append({"threshold": t, "micro_dice": _r(dice_from(total)), "micro_iou": _r(iou_from(total))})
+    result = {
+        "experiment": experiment,
+        "variant": variant,
+        "weights": str(weights),
+        "selected_on_split": "val",
+        "n_images": len(images),
+        "criterion": "doğrulama kümesinde en yüksek mikro Dice (eşitlikte daha yüksek eşik)",
+        "selected_threshold": best_t,
+        "selected_val_micro_dice": _r(best_dice),
+        "grid": table,
+        "caveats": [
+            f"Eşik yalnızca {len(images)} doğrulama görüntüsüyle seçildi; kararsız olabilir.",
+            "Test kümesi eşik seçiminde kullanılmadı.",
+        ],
+        "selected_at_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    if best_t is None:
+        result["caveats"].append("Hiçbir eşikte pozitif Dice yok; model doğrulama kümesinde hasar bulamadı.")
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    selection_path_for(experiment, reports_dir).write_text(
+        json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info("Seçilen eşik (val): %s, Dice %s", best_t, _r(best_dice))
+    return result
+
+
+def export_app_weights(weights: Path, selection: dict, weights_dir: Path = Path("weights"),
+                       evaluation: Optional[dict] = None) -> Path:
+    """Ağırlığı uygulamanın kullandığı yere kopyalar ve önerilen eşiği yanına yazar."""
+    if selection.get("selected_threshold") is None:
+        raise PreparationError("Seçilmiş eşik yok; model uygulamaya aktarılmadı.")
+    weights_dir.mkdir(parents=True, exist_ok=True)
+    target = weights_dir / "best_model.pt"
+    if Path(weights).resolve() != target.resolve():
+        shutil.copyfile(weights, target)
+    meta = {
+        "experiment": selection["experiment"],
+        "variant": selection["variant"],
+        "source_weights": str(weights),
+        "weights_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+        "recommended_confidence_threshold": selection["selected_threshold"],
+        "threshold_selected_on": selection["selected_on_split"],
+        "val_micro_dice": selection["selected_val_micro_dice"],
+        "n_val_images": selection["n_images"],
+        "exported_at_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    if evaluation is not None:
+        t = f"{selection['selected_threshold']:.2f}"
+        m = evaluation.get("pixel_metrics_by_conf_threshold", {}).get(t)
+        if m:
+            meta["test_at_recommended_threshold"] = {
+                "n_images": evaluation["n_images"], "micro_iou": m["micro_iou"],
+                "micro_iou_ci95": m["micro_iou_ci95"], "micro_dice_f1": m["micro_dice_f1"],
+            }
+    meta_path = target.with_suffix(".meta.json")
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info("Uygulama ağırlığı: %s (önerilen eşik %s)", target, meta["recommended_confidence_threshold"])
+    return target
+
+
 def run_evaluate(
     weights: Path,
     variant: str = VARIANT_MALATYA,
@@ -193,26 +363,23 @@ def run_evaluate(
     reports_dir: Path = Path("reports"),
     yolo_factory=None,
     run_ultralytics_val: bool = True,
+    use_selected_threshold: bool = True,
 ) -> dict:
     audit_report = load_passed_audit(audit_path)
-    if not Path(weights).is_file():
-        raise PreparationError(f"Ağırlık dosyası yok: {weights}")
+    model = _load_checked_model(weights, yolo_factory)
     dataset_dir = output_dir_for(variant, processed_root)
-    image_dir = dataset_dir / "images" / split
-    images = sorted(p for p in image_dir.glob("*") if p.suffix.lower() in IMAGE_SUFFIXES)
-    if not images:
-        raise PreparationError(f"Değerlendirme görüntüsü yok: {image_dir}")
+    images = _split_images(dataset_dir, split)
     experiment = experiment or Path(weights).stem.replace("_best", "")
     gsd_values = audit_report["malatya"]["gsd_m_per_pixel_from_source_metadata"]
     gsd = gsd_values[0] if len(gsd_values) == 1 else None
 
-    if yolo_factory is None:
-        from ultralytics import YOLO as yolo_factory  # noqa: N811
-    model = yolo_factory(str(weights))
-    names = getattr(model, "names", {})
-    class_names = [names[k] for k in sorted(names)] if isinstance(names, dict) else list(names)
-    if class_names != ["damaged_region"]:
-        raise PreparationError(f"Model sınıfları beklenen değil: {class_names}")
+    selected = None
+    sel_path = selection_path_for(experiment, reports_dir)
+    if use_selected_threshold and sel_path.is_file():
+        selected = json.loads(sel_path.read_text(encoding="utf-8")).get("selected_threshold")
+    thresholds = sorted({round(float(t), 2) for t in thresholds} | ({round(selected, 2)} if selected else set()))
+    if selected:
+        figure_threshold = round(selected, 2)
 
     result = {
         "experiment": experiment,
@@ -223,6 +390,7 @@ def run_evaluate(
         "evaluated_at_utc": datetime.now(timezone.utc).isoformat(),
         "evaluation_cities": ["malatya"],
         "gsd_m_per_pixel": gsd,
+        "selected_threshold_from_val": selected,
         "caveats": [
             f"Değerlendirme kümesi küçük (n={len(images)}); metrikler belirsizlik aralığıyla yorumlanmalı.",
             "Piksel IoU/Dice, hasar maskesi ile tahmin maskesinin birleşimi üzerinden hesaplanır; "
@@ -250,29 +418,10 @@ def run_evaluate(
         if box is not None:
             result["ultralytics_box"] = {"map50": _r(box.map50), "map50_95": _r(box.map)}
 
-    lowest = min(thresholds)
-    per_threshold: Dict[float, Dict[str, PixelCounts]] = {t: {} for t in thresholds}
-    pred_px: Dict[float, Dict[str, int]] = {t: {} for t in thresholds}
-    gt_px: Dict[str, int] = {}
-    fig_dir = reports_dir / "figures" / experiment
+    fig_dir = reports_dir / "figures" / (experiment if split == "test" else f"{experiment}_{split}")
     fig_dir.mkdir(parents=True, exist_ok=True)
-
-    for image_path in images:
-        gt = binarize(cv2.imread(str(dataset_dir / "masks" / split / image_path.name), cv2.IMREAD_UNCHANGED))
-        post = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
-        pre = cv2.imread(str(dataset_dir / "pre" / split / image_path.name), cv2.IMREAD_COLOR)
-        kwargs = dict(conf=lowest, imgsz=imgsz, retina_masks=True, verbose=False)
-        if device:
-            kwargs["device"] = device
-        res = model.predict(post, **kwargs)[0]
-        masks, confs = _extract(res, gt.shape)
-        gt_px[image_path.name] = int(gt.sum())
-        for t in thresholds:
-            pred = union_mask(masks, confs, t, gt.shape)
-            per_threshold[t][image_path.name] = pixel_counts(pred, gt)
-            pred_px[t][image_path.name] = int(pred.sum())
-            if abs(t - figure_threshold) < 1e-9 and pre is not None:
-                cv2.imwrite(str(fig_dir / image_path.name), make_panel(pre, post, gt, pred, t))
+    per_threshold, pred_px, gt_px = _collect_pixel_counts(
+        model, dataset_dir, split, images, thresholds, imgsz, device, fig_dir, figure_threshold)
 
     result["pixel_metrics_by_conf_threshold"] = {
         f"{t:.2f}": summarize_threshold(per_threshold[t], gsd, pred_px[t], gt_px) for t in thresholds
@@ -281,9 +430,11 @@ def run_evaluate(
 
     reports_dir.mkdir(parents=True, exist_ok=True)
     text = json.dumps(result, ensure_ascii=False, indent=2)
-    (reports_dir / f"evaluation_{experiment}.json").write_text(text, encoding="utf-8")
-    (reports_dir / "evaluation.json").write_text(text, encoding="utf-8")
-    logger.info("Değerlendirme raporu: %s", reports_dir / f"evaluation_{experiment}.json")
+    suffix = "" if split == "test" else f"_{split}"
+    (reports_dir / f"evaluation_{experiment}{suffix}.json").write_text(text, encoding="utf-8")
+    if split == "test":
+        (reports_dir / "evaluation.json").write_text(text, encoding="utf-8")
+    logger.info("Değerlendirme raporu: %s", reports_dir / f"evaluation_{experiment}{suffix}.json")
     return result
 
 
@@ -317,6 +468,8 @@ def print_summary(result: dict) -> None:
         s = result["ultralytics_seg"]
         print(f"Mask mAP50: {s['mask_map50']}  mAP50-95: {s['mask_map50_95']}  "
               f"P: {s['mask_precision']}  R: {s['mask_recall']}  (conf={s['conf_threshold']})")
+    if result.get("selected_threshold_from_val") is not None:
+        print(f"Doğrulama kümesinde seçilen eşik: {result['selected_threshold_from_val']}")
     for t, m in result["pixel_metrics_by_conf_threshold"].items():
         print(f"conf>={t}: IoU {m['micro_iou']} {m['micro_iou_ci95']}  Dice {m['micro_dice_f1']} "
               f"{m['micro_dice_ci95']}  alan hatası {m['area']['relative_area_error']}")
@@ -333,16 +486,33 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--name", dest="experiment")
     parser.add_argument("--thresholds", type=float, nargs="+", default=list(DEFAULT_PIXEL_THRESHOLDS))
     parser.add_argument("--device", default=None)
+    parser.add_argument("--select-threshold", action="store_true",
+                        help="Önce doğrulama kümesinde eşik seç (test kümesine bakmadan)")
+    parser.add_argument("--export-app-weights", action="store_true",
+                        help="Ağırlığı weights/best_model.pt yap, seçilen eşiği best_model.meta.json'a yaz")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - [%(levelname)s] - %(name)s: %(message)s",
                         datefmt="%H:%M:%S")
     try:
+        selection = None
+        if args.select_threshold:
+            selection = run_select_threshold(args.weights, args.variant, args.experiment, device=args.device)
+            print(f"Doğrulama kümesinde seçilen eşik: {selection['selected_threshold']} "
+                  f"(Dice {selection['selected_val_micro_dice']}, n={selection['n_images']})")
         result = run_evaluate(args.weights, args.variant, args.split, args.experiment, args.thresholds,
                               device=args.device)
+        print_summary(result)
+        if args.export_app_weights:
+            if selection is None:
+                path = selection_path_for(result["experiment"])
+                if not path.is_file():
+                    raise PreparationError("Önce --select-threshold ile eşik seçilmeli.")
+                selection = json.loads(path.read_text(encoding="utf-8"))
+            target = export_app_weights(args.weights, selection, evaluation=result)
+            print(f"Uygulama modeli: {target} (önerilen eşik {selection['selected_threshold']})")
     except PreparationError as exc:
         logger.error("%s", exc)
         return 2
-    print_summary(result)
     return 0
 
 

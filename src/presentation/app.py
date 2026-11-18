@@ -119,8 +119,8 @@ def _render_sidebar(context: AppContext) -> dict:
             max_value=1.0,
             value=float(context.default_confidence_threshold),
             step=0.05,
-            help="Bu değerin altındaki tahminler sonuca girmez. 0.70 başlangıç değeridir, "
-            "doğrulanmış en iyi değer değildir.",
+            help=ui.threshold_help(context.confidence_threshold_source,
+                                   context.default_confidence_threshold),
         )
         st.subheader("Kalibrasyon")
         gsd = st.number_input(

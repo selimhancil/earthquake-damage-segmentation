@@ -212,6 +212,17 @@ def build_request(
     )
 
 
+def threshold_help(source: str, value: float) -> str:
+    """Confidence kaydırıcısının açıklaması: varsayılanın nereden geldiği."""
+    base = "Bu değerin altındaki tahminler sonuca girmez. "
+    if source == "model_meta":
+        return base + (
+            f"Varsayılan ({value:.2f}), model seçilirken doğrulama kümesinde belirlenen eşiktir "
+            "(test kümesine bakılmadan)."
+        )
+    return base + "0.70 başlangıç değeridir, doğrulanmış en iyi değer değildir."
+
+
 def uploader_types(allowed_extensions) -> List[str]:
     """st.file_uploader için uzantı listesi (noktasız, sıralı)."""
     return sorted(ext.lstrip(".") for ext in allowed_extensions)

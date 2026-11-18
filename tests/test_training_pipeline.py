@@ -376,3 +376,127 @@ def test_tampered_metadata_is_rejected(workspace):
     path.write_text(path.read_text() + "\n./train/label/x.png ./train/label/train_999.png\n")
     with pytest.raises(PreparationError, match="SHA-256"):
         prepare(workspace, "kate7_eval_malatya")
+
+
+# --------------------------------------------------------------------------- #
+# Eşik seçimi (doğrulama kümesi) ve uygulamaya aktarma
+# --------------------------------------------------------------------------- #
+from src.training.evaluate import (  # noqa: E402
+    export_app_weights,
+    run_select_threshold,
+    select_best_threshold,
+    selection_path_for,
+)
+
+
+class TestThresholdSelection:
+    def test_picks_threshold_with_best_dice(self):
+        per = {
+            0.25: {"a": PixelCounts(450, 400, 450)},  # uzak yanlış pozitif dahil
+            0.50: {"a": PixelCounts(450, 0, 450)},
+            0.90: {"a": PixelCounts(0, 0, 900)},
+        }
+        t, dice = select_best_threshold(per)
+        assert t == 0.50
+        assert dice == pytest.approx(900 / 1350)
+
+    def test_tie_prefers_higher_threshold(self):
+        same = {"a": PixelCounts(10, 2, 3)}
+        assert select_best_threshold({0.2: same, 0.4: same})[0] == 0.4
+
+    def test_no_positive_dice_returns_none(self):
+        assert select_best_threshold({0.5: {"a": PixelCounts(0, 0, 10)}}) == (None, None)
+
+    def test_selection_uses_val_only_and_test_eval_picks_it_up(self, workspace):
+        prepare(workspace, "malatya")
+        convert_to_yolo.run_convert("malatya")
+        Path("weights").mkdir(exist_ok=True)
+        Path("weights/A_best.pt").write_bytes(b"w")
+
+        seen_images = []
+
+        class Recording(FakeEvalYolo):
+            def predict(self, image, **kwargs):
+                seen_images.append(float(image.mean()))
+                return super().predict(image, **kwargs)
+
+        sel = run_select_threshold(Path("weights/A_best.pt"), "malatya", "A", yolo_factory=Recording)
+        # fake: conf 0.8 doğru, 0.3 uzak yanlış pozitif -> 0.30'un üstü, 0.80'e kadar en iyi; eşitlikte yüksek
+        assert sel["selected_threshold"] == 0.80
+        assert sel["selected_on_split"] == "val" and sel["n_images"] == 1
+        assert len(seen_images) == 1  # yalnızca val görüntüsü tahmin edildi
+        assert selection_path_for("A").is_file()
+
+        result = evaluate.run_evaluate(Path("weights/A_best.pt"), "malatya", "test", "A",
+                                       yolo_factory=FakeEvalYolo)
+        assert result["selected_threshold_from_val"] == 0.80
+        assert "0.80" in result["pixel_metrics_by_conf_threshold"]
+
+    def test_val_evaluation_does_not_overwrite_test_report(self, workspace):
+        prepare(workspace, "malatya")
+        convert_to_yolo.run_convert("malatya")
+        Path("weights").mkdir(exist_ok=True)
+        Path("weights/A_best.pt").write_bytes(b"w")
+        evaluate.run_evaluate(Path("weights/A_best.pt"), "malatya", "test", "A", yolo_factory=FakeEvalYolo)
+        evaluate.run_evaluate(Path("weights/A_best.pt"), "malatya", "val", "A", yolo_factory=FakeEvalYolo)
+        assert json.loads(Path("reports/evaluation_A.json").read_text())["split"] == "test"
+        assert json.loads(Path("reports/evaluation_A_val.json").read_text())["split"] == "val"
+        assert json.loads(Path("reports/evaluation.json").read_text())["split"] == "test"
+
+    def test_export_writes_weights_and_meta(self, tmp_path):
+        src = tmp_path / "B_best.pt"
+        src.write_bytes(b"model-bytes")
+        selection = {"experiment": "B", "variant": "kate7_eval_malatya", "selected_threshold": 0.25,
+                     "selected_on_split": "val", "selected_val_micro_dice": 0.7, "n_images": 5}
+        evaluation = {"n_images": 4, "pixel_metrics_by_conf_threshold": {
+            "0.25": {"micro_iou": 0.55, "micro_iou_ci95": [0.26, 0.71], "micro_dice_f1": 0.71}}}
+        target = export_app_weights(src, selection, tmp_path / "weights", evaluation)
+        assert target.read_bytes() == b"model-bytes"
+        meta = json.loads((tmp_path / "weights" / "best_model.meta.json").read_text())
+        assert meta["recommended_confidence_threshold"] == 0.25
+        assert meta["threshold_selected_on"] == "val"
+        assert meta["test_at_recommended_threshold"]["micro_iou"] == 0.55
+        assert len(meta["weights_sha256"]) == 64
+
+    def test_export_refuses_without_threshold(self, tmp_path):
+        src = tmp_path / "B_best.pt"
+        src.write_bytes(b"x")
+        with pytest.raises(PreparationError, match="eşik"):
+            export_app_weights(src, {"selected_threshold": None}, tmp_path / "w")
+
+
+class TestAppThresholdFromMeta:
+    def test_reads_recommended_threshold(self, tmp_path):
+        import config
+
+        meta = tmp_path / "best_model.meta.json"
+        meta.write_text(json.dumps({"recommended_confidence_threshold": 0.25}))
+        value, source, data = config.recommended_threshold(meta)
+        assert (value, source) == (0.25, "model_meta")
+
+    @pytest.mark.parametrize("content", [None, "not json", json.dumps({"x": 1}),
+                                         json.dumps({"recommended_confidence_threshold": 1.5})])
+    def test_falls_back_to_070(self, tmp_path, content):
+        import config
+
+        meta = tmp_path / "best_model.meta.json"
+        if content is not None:
+            meta.write_text(content)
+        value, source, _ = config.recommended_threshold(meta)
+        assert (value, source) == (0.70, "default")
+
+    def test_slider_help_explains_source(self):
+        from src.presentation.components import threshold_help
+
+        assert "doğrulama kümesinde" in threshold_help("model_meta", 0.25)
+        assert "0.25" in threshold_help("model_meta", 0.25)
+        assert "0.70 başlangıç" in threshold_help("default", 0.70)
+
+
+def test_notebook_streams_logs_and_selects_threshold_on_val():
+    nb = json.loads((Path(__file__).resolve().parents[1] / "notebooks" / "colab_train.ipynb").read_text(encoding="utf-8"))
+    code = "\n".join("".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code")
+    assert "subprocess.Popen" in code and "for line in proc.stdout" in code  # canlı epoch çıktısı
+    assert "--epochs 100" in code
+    assert "--select-threshold" in code and "--export-app-weights" in code
+    assert code.index("src.training.train") < code.index("--select-threshold")

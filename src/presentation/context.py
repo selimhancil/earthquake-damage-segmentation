@@ -22,6 +22,8 @@ class AppContext:
     max_image_mb: float
     weights_path: Path
     geotiff_enabled: bool
+    # Varsayılan eşiğin kaynağı: "model_meta" (doğrulama kümesinde seçildi) veya "default" (0.70)
+    confidence_threshold_source: str = "default"
     # Demo modu: sahte model + sentetik örnek sahne. Sonuçlar DEMO ONLY'dir.
     demo_mode: bool = False
     demo_sample_provider: Optional[Callable[[], Tuple[bytes, bytes]]] = None  # (öncesi, sonrası) PNG

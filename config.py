@@ -10,8 +10,10 @@ Ortam değişkenleriyle geçersiz kılınabilen değerler:
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 from pathlib import Path
+from typing import Optional, Tuple
 
 def env_flag(name: str, default: bool = False) -> bool:
     """'1', 'true', 'yes', 'on' (büyük/küçük harf duyarsız) -> True."""
@@ -35,7 +37,27 @@ REPORTS_DIR = BASE_DIR / "reports"
 # Analiz ayarları
 # --------------------------------------------------------------------------- #
 # Kural 1: 0.70 keyfi bir başlangıçtır, doğrulanmış optimum değildir.
-DEFAULT_CONFIDENCE_THRESHOLD = 0.70
+FALLBACK_CONFIDENCE_THRESHOLD = 0.70
+MODEL_META_PATH = WEIGHTS_PATH.with_suffix(".meta.json")
+
+
+def recommended_threshold(meta_path: Path = MODEL_META_PATH) -> Tuple[float, str, Optional[dict]]:
+    """Modelle birlikte gelen önerilen eşik (doğrulama kümesinde seçilmiş).
+
+    weights/best_model.meta.json yoksa ya da geçersizse 0.70'e düşer.
+    Döner: (eşik, kaynak, meta)
+    """
+    try:
+        meta = json.loads(Path(meta_path).read_text(encoding="utf-8"))
+        value = float(meta["recommended_confidence_threshold"])
+        if 0 < value <= 1:
+            return value, "model_meta", meta
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    return FALLBACK_CONFIDENCE_THRESHOLD, "default", None
+
+
+DEFAULT_CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD_SOURCE, MODEL_META = recommended_threshold()
 # Yalnızca bilimsel değerlendirme (mAP) için; arayüzde KULLANILMAZ.
 EVAL_CONFIDENCE_THRESHOLD = 0.001
 

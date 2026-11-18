@@ -79,6 +79,7 @@ def build_context(demo_mode: bool = config.DEMO_MODE) -> AppContext:
         segmentation_service=segmenter,
         allowed_extensions=config.ALLOWED_EXTENSIONS,
         default_confidence_threshold=config.DEFAULT_CONFIDENCE_THRESHOLD,
+        confidence_threshold_source=config.CONFIDENCE_THRESHOLD_SOURCE,
         max_image_mb=config.MAX_IMAGE_MB,
         weights_path=config.WEIGHTS_PATH,
         geotiff_enabled=config.GEOTIFF_ENABLED,

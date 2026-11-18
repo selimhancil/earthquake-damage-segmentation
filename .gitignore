@@ -1,31 +1,117 @@
-# Python / ortam
-venv/
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
-.pytest_cache/
-.ipynb_checkpoints/
-.env
-.streamlit/secrets.toml
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
 
-# macOS / IDE
+# ---------------------------------------------------------------------------
+# Virtual environments
+# ---------------------------------------------------------------------------
+venv/
+.venv/
+env/
+ENV/
+
+# ---------------------------------------------------------------------------
+# Testing, coverage and type checking
+# ---------------------------------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+
+# ---------------------------------------------------------------------------
+# Jupyter / Colab
+# ---------------------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+sample_data/
+
+# ---------------------------------------------------------------------------
+# Secrets and local configuration
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+*.pem
+*.key
+.huggingface/
+hf_token*
+
+# ---------------------------------------------------------------------------
+# OS / editors
+# ---------------------------------------------------------------------------
 .DS_Store
+._*
+Thumbs.db
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Buyuk veri ve uretilen ciktilar (klasorler .gitkeep ile korunur)
+# ---------------------------------------------------------------------------
+# Logs and temporary files
+# ---------------------------------------------------------------------------
+*.log
+logs/
+*.tmp
+tmp/
+
+# ---------------------------------------------------------------------------
+# Datasets and generated outputs (folders are kept via .gitkeep)
+# ---------------------------------------------------------------------------
 data/raw/*
 !data/raw/.gitkeep
 data/processed/malatya_yolo/images/*/*
 !data/processed/malatya_yolo/images/*/.gitkeep
 data/processed/malatya_yolo/labels/*/*
 !data/processed/malatya_yolo/labels/*/.gitkeep
+data/processed/**/*.cache
 data/test_results/*
 !data/test_results/.gitkeep
+
+# Hugging Face / datasets local cache
+.cache/
+hf_cache/
+
+# ---------------------------------------------------------------------------
+# Model weights and training runs
+# ---------------------------------------------------------------------------
 runs/*
 !runs/.gitkeep
 weights/*
 !weights/.gitkeep
+*.pt
+*.pth
+*.onnx
+*.engine
+*.torchscript
+*.mlpackage/
 
-# Buyuk raster dosyalari
+# ---------------------------------------------------------------------------
+# Large rasters
+# ---------------------------------------------------------------------------
 *.tif
 *.tiff
+*.vrt
+*.aux.xml
+
+# ---------------------------------------------------------------------------
+# Note: reports/ is intentionally tracked (data_audit.json, evaluation.json,
+# experiment_config.json are part of the reproducible research record).
+# ---------------------------------------------------------------------------

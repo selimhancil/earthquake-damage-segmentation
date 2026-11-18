@@ -1,0 +1,22 @@
+# Uygulama
+numpy
+opencv-python
+streamlit
+pillow
+pyyaml
+
+# Model (Mac'te varsayilan wheel CPU/MPS ile calisir)
+torch
+torchvision
+ultralytics
+
+# GeoTIFF / georeference
+rasterio
+
+# Veri seti denetimi ve indirme
+datasets
+huggingface_hub
+
+# Test ve bagimlilik yonetimi
+pytest
+pip-tools

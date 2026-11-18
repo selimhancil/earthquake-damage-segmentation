@@ -1,0 +1,31 @@
+# Python / ortam
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.env
+.streamlit/secrets.toml
+
+# macOS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Buyuk veri ve uretilen ciktilar (klasorler .gitkeep ile korunur)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/malatya_yolo/images/*/*
+!data/processed/malatya_yolo/images/*/.gitkeep
+data/processed/malatya_yolo/labels/*/*
+!data/processed/malatya_yolo/labels/*/.gitkeep
+data/test_results/*
+!data/test_results/.gitkeep
+runs/*
+!runs/.gitkeep
+weights/*
+!weights/.gitkeep
+
+# Buyuk raster dosyalari
+*.tif
+*.tiff
